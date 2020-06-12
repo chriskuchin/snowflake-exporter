@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/prometheus/client_golang/prometheus"
@@ -196,7 +196,6 @@ func main() {
 			return err
 		},
 	}
-
 	app.Run(os.Args)
 }
 
