@@ -127,21 +127,33 @@ func main() {
 				Name:        "disable-query-metrics",
 				Value:       false,
 				Destination: &disableQueryCollection,
+				EnvVars: []string{
+					"DISABLE_QUERY_METRICS",
+				},
 			},
 			&cli.BoolFlag{
 				Name:        "disable-warehouse-usage-metrics",
 				Value:       false,
 				Destination: &disableWarehouseUsageCollection,
+				EnvVars: []string{
+					"DISABLE_WAREHOUSE_METRICS",
+				},
 			},
 			&cli.BoolFlag{
 				Name:        "disable-task-metrics",
 				Value:       false,
 				Destination: &disableTaskMetricCollection,
+				EnvVars: []string{
+					"DISABLE_TASK_METRICS",
+				},
 			},
 			&cli.BoolFlag{
 				Name:        "disable-copy-metrics",
 				Value:       false,
 				Destination: &disableCopyMetricCollection,
+				EnvVars: []string{
+					"DISABLE_COPY_METRICS",
+				},
 			},
 			&cli.BoolFlag{
 				Name:        "debug",
@@ -150,10 +162,6 @@ func main() {
 			},
 		},
 		Action: func(c *cli.Context) error {
-
-			// if debug {
-			// 	log.SetLevel("DEBUG")
-			// }
 			url, _ := gosnowflake.DSN(&gosnowflake.Config{
 				Account:   account,
 				User:      user,
