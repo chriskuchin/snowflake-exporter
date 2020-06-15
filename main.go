@@ -35,7 +35,8 @@ var (
 
 	debug bool
 
-	copyTables []string
+	copyTables       []string
+	histogramBuckets []float64
 )
 
 func main() {
@@ -169,9 +170,15 @@ func main() {
 				Value:       false,
 				Destination: &debug,
 			},
+			&cli.Float64SliceFlag{
+				Name:  "histogram-buckets",
+				Value: cli.NewFloat64Slice(5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000),
+			},
 		},
 		Action: func(c *cli.Context) error {
 			copyTables = c.StringSlice("copy-tables")
+			histogramBuckets = c.Float64Slice("histogram-buckets")
+
 			url, _ := gosnowflake.DSN(&gosnowflake.Config{
 				Account:   account,
 				User:      user,
@@ -244,6 +251,7 @@ var (
 	bytesScannedCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name:        "bytes_scanned",
 		Subsystem:   "query",
+		Namespace:   "snowflake",
 		Help:        "The number of bytes scanned when the query was run",
 		ConstLabels: prometheus.Labels{"account": account},
 	}, queryLabels)
@@ -251,30 +259,34 @@ var (
 	elapsedTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:        "elapsed_time",
 		Subsystem:   "query",
+		Namespace:   "snowflake",
 		Help:        "Elapsed time (in milliseconds)",
 		ConstLabels: prometheus.Labels{"account": account},
-		Buckets:     []float64{5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000},
+		Buckets:     histogramBuckets,
 	}, queryLabels)
 
 	executionTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:        "execution_time",
 		Subsystem:   "query",
+		Namespace:   "snowflake",
 		Help:        "Execution time (in milliseconds)",
 		ConstLabels: prometheus.Labels{"account": account},
-		Buckets:     []float64{5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000},
+		Buckets:     histogramBuckets,
 	}, queryLabels)
 
 	compilationTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:        "compilation_time",
 		Subsystem:   "query",
+		Namespace:   "snowflake",
 		Help:        "Compilation time (in milliseconds)",
 		ConstLabels: prometheus.Labels{"account": account},
-		Buckets:     []float64{5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000},
+		Buckets:     histogramBuckets,
 	}, queryLabels)
 
 	rowsReturnedCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name:        "rows_returned",
 		Subsystem:   "query",
+		Namespace:   "snowflake",
 		Help:        "Number of rows produced by this statement.",
 		ConstLabels: prometheus.Labels{"account": account},
 	}, queryLabels)
@@ -282,33 +294,37 @@ var (
 	queuedProvisionHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:        "queued_provision",
 		Subsystem:   "query",
+		Namespace:   "snowflake",
 		Help:        "Time (in milliseconds) spent in the warehouse queue, waiting for the warehouse servers to provision, due to warehouse creation, resume, or resize.",
 		ConstLabels: prometheus.Labels{"account": account},
-		Buckets:     []float64{5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000},
+		Buckets:     histogramBuckets,
 	}, queryLabels)
 
 	queuedRepairHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:        "queued_repair",
 		Subsystem:   "query",
+		Namespace:   "snowflake",
 		Help:        "Time (in milliseconds) spent in the warehouse queue, waiting for servers in the warehouse to be repaired.",
 		ConstLabels: prometheus.Labels{"account": account},
-		Buckets:     []float64{5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000},
+		Buckets:     histogramBuckets,
 	}, queryLabels)
 
 	queuedOverloadHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:        "queued_overload",
 		Subsystem:   "query",
+		Namespace:   "snowflake",
 		Help:        "Time (in milliseconds) spent in the warehouse queue, due to the warehouse being overloaded by the current query workload.",
 		ConstLabels: prometheus.Labels{"account": account},
-		Buckets:     []float64{5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000},
+		Buckets:     histogramBuckets,
 	}, queryLabels)
 
 	blockedTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:        "blocked_time",
 		Subsystem:   "query",
+		Namespace:   "snowflake",
 		Help:        "Time (in milliseconds) spent blocked by a concurrent DML.",
 		ConstLabels: prometheus.Labels{"account": account},
-		Buckets:     []float64{5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000},
+		Buckets:     histogramBuckets,
 	}, queryLabels)
 )
 
@@ -380,6 +396,7 @@ var (
 	rowsLoadedCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name:        "rows_loaded_count",
 		Subsystem:   "copy",
+		Namespace:   "snowflake",
 		Help:        "Number of rows loaded from the source file.",
 		ConstLabels: prometheus.Labels{"account": account},
 	}, copyLabels)
@@ -387,6 +404,7 @@ var (
 	errorRowCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name:        "error_count",
 		Subsystem:   "copy",
+		Namespace:   "snowflake",
 		Help:        "Number of error rows in the source file.",
 		ConstLabels: prometheus.Labels{"account": account},
 	}, copyLabels)
@@ -394,6 +412,7 @@ var (
 	parsedRowCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name:        "parse_count",
 		Subsystem:   "copy",
+		Namespace:   "snowflake",
 		Help:        "Number of rows parsed from the source file;``NULL`` if STATUS is ‘LOAD_IN_PROGRESS’.",
 		ConstLabels: prometheus.Labels{"account": account},
 	}, copyLabels)
@@ -439,6 +458,7 @@ var (
 	taskRunCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name:        "run_count",
 		Subsystem:   "task",
+		Namespace:   "snowflake",
 		Help:        "Number of time the task has run",
 		ConstLabels: prometheus.Labels{"account": account},
 	}, taskLabels)
@@ -469,6 +489,7 @@ var (
 	warehouseCreditsUsed = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name:      "",
 		Subsystem: "warehouse",
+		Namespace: "snowflake",
 		Help:      "",
 	}, []string{})
 )
