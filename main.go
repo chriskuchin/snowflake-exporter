@@ -169,6 +169,9 @@ func main() {
 				Name:        "debug",
 				Value:       false,
 				Destination: &debug,
+				EnvVars: []string{
+					"DEBUG",
+				},
 			},
 			&cli.Float64SliceFlag{
 				Name:  "histogram-buckets",
@@ -178,6 +181,9 @@ func main() {
 		Action: func(c *cli.Context) error {
 			copyTables = c.StringSlice("copy-tables")
 			histogramBuckets = c.Float64Slice("histogram-buckets")
+			if debug {
+				log.Base().SetLevel("DEBUG")
+			}
 
 			url, _ := gosnowflake.DSN(&gosnowflake.Config{
 				Account:   account,
@@ -195,26 +201,26 @@ func main() {
 			defer db.Close()
 
 			if !disableQueryCollection {
-				log.Info("Enabling Query Metrics")
+				log.Debug("Enabling Query Metrics")
 				go gatherQueryMetrics(db)
 			}
 
 			if !disableWarehouseUsageCollection {
-				log.Info("Enabling Warehouse Usage Metrics")
+				log.Debug("Enabling Warehouse Usage Metrics")
 				go gatherWarehouseMetrics(db)
 			}
 
 			if !disableCopyMetricCollection {
-				log.Info("Enabling Copy Metrics")
+				log.Debug("Enabling Copy Metrics")
 				go gatherCopyMetrics(db)
 			}
 
 			if !disableTaskMetricCollection {
-				log.Info("Enabling Task Metrics")
+				log.Debug("Enabling Task Metrics")
 				go gatherTaskMetrics(db)
 			}
 
-			log.Infof("Starting metrics server on port: %d path: %s", port, path)
+			log.Debugf("Starting metrics server on port: %d path: %s", port, path)
 			http.Handle(path, promhttp.Handler())
 			http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 
@@ -432,6 +438,8 @@ func gatherCopyMetrics(db *sql.DB) {
 			copy := &copy{}
 			for rows.Next() {
 				rows.StructScan(copy)
+
+				log.Debugf("Found copy info: %+v", copy)
 				rowsLoadedCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.RowCount)
 				errorRowCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.ErrorCount)
 				parsedRowCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.RowParsed)
