@@ -34,6 +34,8 @@ var (
 	disableCopyMetricCollection     bool
 
 	debug bool
+
+	copyTables []string
 )
 
 func main() {
@@ -42,6 +44,13 @@ func main() {
 		Name:    "Snowflake Exporter",
 		Version: "1.0.0",
 		Flags: []cli.Flag{
+			&cli.StringSliceFlag{
+				Name:     "copy-tables",
+				Required: true,
+				EnvVars: []string{
+					"COPY_TABLES",
+				},
+			},
 			&cli.StringFlag{
 				Name:  "user",
 				Usage: "Snowflake user to auth using",
@@ -162,6 +171,7 @@ func main() {
 			},
 		},
 		Action: func(c *cli.Context) error {
+			copyTables = c.StringSlice("copy-tables")
 			url, _ := gosnowflake.DSN(&gosnowflake.Config{
 				Account:   account,
 				User:      user,
@@ -386,21 +396,23 @@ func gatherCopyMetrics(db *sql.DB) {
 	prometheus.MustRegister(rowsLoadedCounter, errorRowCounter, parsedRowCounter)
 
 	for {
-		rows, err := runQuery("select * from table(information_schema.copy_history(TABLE_NAME=>'session_stat_stage', START_TIME=> DATEADD(minutes, -10, CURRENT_TIMESTAMP())));", db)
-		if err != nil {
-			log.Errorf("Failed to query db for copy history. %+v", err)
-			continue
-		}
+		for _, table := range copyTables {
+			rows, err := runQuery(fmt.Sprintf("select * from table(information_schema.copy_history(TABLE_NAME=>'%s', START_TIME=> DATEADD(minutes, -10, CURRENT_TIMESTAMP())));", table), db)
+			if err != nil {
+				log.Errorf("Failed to query db for copy history. %+v", err)
+				continue
+			}
 
-		copy := &copy{}
-		for rows.Next() {
-			rows.StructScan(copy)
-			rowsLoadedCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.RowCount)
-			errorRowCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.ErrorCount)
-			parsedRowCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.RowParsed)
-		}
+			copy := &copy{}
+			for rows.Next() {
+				rows.StructScan(copy)
+				rowsLoadedCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.RowCount)
+				errorRowCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.ErrorCount)
+				parsedRowCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.RowParsed)
+			}
 
-		rows.Close()
+			rows.Close()
+		}
 		time.Sleep(10 * time.Minute)
 	}
 }
