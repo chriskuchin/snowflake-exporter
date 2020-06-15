@@ -434,10 +434,17 @@ var (
 		Namespace:   "snowflake",
 		ConstLabels: prometheus.Labels{"account": account},
 	}, copyLabels)
+
+	successGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name:        "success",
+		Subsystem:   "copy",
+		Namespace:   "snowflake",
+		ConstLabels: prometheus.Labels{"account": account},
+	}, []string{"target_table", "target_schema", "target_database", "pipe_name", "pipe_schema", "pipe_database"})
 )
 
 func gatherCopyMetrics(db *sql.DB) {
-	prometheus.MustRegister(rowsLoadedCounter, errorRowCounter, parsedRowCounter)
+	prometheus.MustRegister(rowsLoadedCounter, errorRowCounter, parsedRowCounter, copyCounter, successGauge)
 
 	for {
 		for _, table := range copyTables {
@@ -451,8 +458,11 @@ func gatherCopyMetrics(db *sql.DB) {
 			for rows.Next() {
 				rows.StructScan(copy)
 
-				// log.Debugf("Found copy info: %+v", copy)
 				copyCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Inc()
+				if copy.Status == "LOADED" {
+					successGauge.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Set(1)
+				}
+
 				rowsLoadedCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.RowCount)
 				errorRowCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.ErrorCount)
 				parsedRowCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.RowParsed)
