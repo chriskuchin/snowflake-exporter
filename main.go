@@ -178,22 +178,22 @@ func main() {
 			defer db.Close()
 
 			if !disableQueryCollection {
-				log.Debug("Enabling Query Metrics")
+				log.Info("Enabling Query Metrics")
 				go gatherQueryMetrics(db)
 			}
 
 			if !disableWarehouseUsageCollection {
-				log.Debug("Enabling Warehouse Usage Metrics")
+				log.Info("Enabling Warehouse Usage Metrics")
 				go gatherWarehouseMetrics(db)
 			}
 
 			if !disableCopyMetricCollection {
-				log.Debug("Enabling Copy Metrics")
+				log.Info("Enabling Copy Metrics")
 				go gatherCopyMetrics(db)
 			}
 
 			if !disableTaskMetricCollection {
-				log.Debug("Enabling Task Metrics")
+				log.Info("Enabling Task Metrics")
 				go gatherTaskMetrics(db)
 			}
 
