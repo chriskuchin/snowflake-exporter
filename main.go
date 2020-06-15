@@ -173,10 +173,6 @@ func main() {
 					"DEBUG",
 				},
 			},
-			&cli.Float64SliceFlag{
-				Name:  "histogram-buckets",
-				Value: cli.NewFloat64Slice(50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000),
-			},
 		},
 		Action: func(c *cli.Context) error {
 			if debug {
@@ -184,8 +180,6 @@ func main() {
 			}
 
 			copyTables = c.StringSlice("copy-tables")
-			histogramBuckets = c.Float64Slice("histogram-buckets")
-			log.Info(histogramBuckets, len(histogramBuckets))
 
 			url, _ := gosnowflake.DSN(&gosnowflake.Config{
 				Account:   account,
