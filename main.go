@@ -253,6 +253,7 @@ var (
 		Subsystem:   "query",
 		Help:        "Elapsed time (in milliseconds)",
 		ConstLabels: prometheus.Labels{"account": account},
+		Buckets:     []float64{5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000},
 	}, queryLabels)
 
 	executionTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
@@ -260,6 +261,7 @@ var (
 		Subsystem:   "query",
 		Help:        "Execution time (in milliseconds)",
 		ConstLabels: prometheus.Labels{"account": account},
+		Buckets:     []float64{5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000},
 	}, queryLabels)
 
 	compilationTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
@@ -267,6 +269,7 @@ var (
 		Subsystem:   "query",
 		Help:        "Compilation time (in milliseconds)",
 		ConstLabels: prometheus.Labels{"account": account},
+		Buckets:     []float64{5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000},
 	}, queryLabels)
 
 	rowsReturnedCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -281,6 +284,7 @@ var (
 		Subsystem:   "query",
 		Help:        "Time (in milliseconds) spent in the warehouse queue, waiting for the warehouse servers to provision, due to warehouse creation, resume, or resize.",
 		ConstLabels: prometheus.Labels{"account": account},
+		Buckets:     []float64{5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000},
 	}, queryLabels)
 
 	queuedRepairHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
@@ -288,6 +292,7 @@ var (
 		Subsystem:   "query",
 		Help:        "Time (in milliseconds) spent in the warehouse queue, waiting for servers in the warehouse to be repaired.",
 		ConstLabels: prometheus.Labels{"account": account},
+		Buckets:     []float64{5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000},
 	}, queryLabels)
 
 	queuedOverloadHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
@@ -295,6 +300,7 @@ var (
 		Subsystem:   "query",
 		Help:        "Time (in milliseconds) spent in the warehouse queue, due to the warehouse being overloaded by the current query workload.",
 		ConstLabels: prometheus.Labels{"account": account},
+		Buckets:     []float64{5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000},
 	}, queryLabels)
 
 	blockedTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
@@ -302,6 +308,7 @@ var (
 		Subsystem:   "query",
 		Help:        "Time (in milliseconds) spent blocked by a concurrent DML.",
 		ConstLabels: prometheus.Labels{"account": account},
+		Buckets:     []float64{5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000},
 	}, queryLabels)
 )
 
