@@ -36,7 +36,7 @@ var (
 	debug bool
 
 	copyTables       []string
-	histogramBuckets []float64
+	histogramBuckets = []float64{50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1250, 1500, 1750, 2000, 2500, 5000, 10000}
 )
 
 func main() {
@@ -175,15 +175,17 @@ func main() {
 			},
 			&cli.Float64SliceFlag{
 				Name:  "histogram-buckets",
-				Value: cli.NewFloat64Slice(5, 10, 25, 50, 100, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 5000, 10000),
+				Value: cli.NewFloat64Slice(50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000),
 			},
 		},
 		Action: func(c *cli.Context) error {
-			copyTables = c.StringSlice("copy-tables")
-			histogramBuckets = c.Float64Slice("histogram-buckets")
 			if debug {
 				log.Base().SetLevel("DEBUG")
 			}
+
+			copyTables = c.StringSlice("copy-tables")
+			histogramBuckets = c.Float64Slice("histogram-buckets")
+			log.Info(histogramBuckets, len(histogramBuckets))
 
 			url, _ := gosnowflake.DSN(&gosnowflake.Config{
 				Account:   account,
@@ -332,10 +334,17 @@ var (
 		ConstLabels: prometheus.Labels{"account": account},
 		Buckets:     histogramBuckets,
 	}, queryLabels)
+
+	queryCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name:        "count",
+		Subsystem:   "query",
+		Namespace:   "snowflake",
+		ConstLabels: prometheus.Labels{"account": account},
+	}, queryLabels)
 )
 
 func gatherQueryMetrics(db *sql.DB) {
-	prometheus.MustRegister(bytesScannedCounter, rowsReturnedCounter, elapsedTimeHistogram, executionTimeHistogram, compilationTimeHistogram, queuedProvisionHistogram, queuedRepairHistogram, queuedOverloadHistogram, blockedTimeHistogram)
+	prometheus.MustRegister(bytesScannedCounter, rowsReturnedCounter, elapsedTimeHistogram, executionTimeHistogram, compilationTimeHistogram, queuedProvisionHistogram, queuedRepairHistogram, queuedOverloadHistogram, blockedTimeHistogram, queryCounter)
 
 	for {
 		unsafe := sqlx.NewDb(db, "snowflake").Unsafe()
@@ -349,28 +358,30 @@ func gatherQueryMetrics(db *sql.DB) {
 		for rows.Next() {
 			rows.StructScan(query)
 
+			queryCounter.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Inc()
+
 			bytesScannedCounter.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Add(query.BytesScanned)
-			log.Debugf("bytes_scanned:%v user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.BytesScanned, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			// log.Debugf("bytes_scanned:%v user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.BytesScanned, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
 
 			elapsedTimeHistogram.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Observe(query.ElapsedTime)
 			executionTimeHistogram.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Observe(query.Executiontime)
 			compilationTimeHistogram.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Observe(query.CompilationTime)
-			log.Debugf("elapsed_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.ElapsedTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
-			log.Debugf("execution_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.Executiontime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
-			log.Debugf("compilation_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.CompilationTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			// log.Debugf("elapsed_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.ElapsedTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			// log.Debugf("execution_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.Executiontime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			// log.Debugf("compilation_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.CompilationTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
 
 			rowsReturnedCounter.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Add(query.RowsProduced)
-			log.Debugf("rows_returned=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.RowsProduced, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			// log.Debugf("rows_returned=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.RowsProduced, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
 
 			queuedProvisionHistogram.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Observe(query.QueuedProvisioningTime)
 			queuedRepairHistogram.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Observe(query.QueuedRepairTime)
 			queuedOverloadHistogram.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Observe(query.QueuedOverloadTime)
-			log.Debugf("queued_provision=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.QueuedProvisioningTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
-			log.Debugf("queued_repair=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.QueuedRepairTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
-			log.Debugf("queued_overload=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.QueuedOverloadTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			// log.Debugf("queued_provision=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.QueuedProvisioningTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			// log.Debugf("queued_repair=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.QueuedRepairTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			// log.Debugf("queued_overload=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.QueuedOverloadTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
 
 			blockedTimeHistogram.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Observe(query.TransactionBlockedTime)
-			log.Debugf("blocked_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.TransactionBlockedTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			// log.Debugf("blocked_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.TransactionBlockedTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
 		}
 
 		rows.Close()
@@ -422,6 +433,13 @@ var (
 		Help:        "Number of rows parsed from the source file;``NULL`` if STATUS is ‘LOAD_IN_PROGRESS’.",
 		ConstLabels: prometheus.Labels{"account": account},
 	}, copyLabels)
+
+	copyCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name:        "count",
+		Subsystem:   "copy",
+		Namespace:   "snowflake",
+		ConstLabels: prometheus.Labels{"account": account},
+	}, copyLabels)
 )
 
 func gatherCopyMetrics(db *sql.DB) {
@@ -439,7 +457,8 @@ func gatherCopyMetrics(db *sql.DB) {
 			for rows.Next() {
 				rows.StructScan(copy)
 
-				log.Debugf("Found copy info: %+v", copy)
+				// log.Debugf("Found copy info: %+v", copy)
+				copyCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Inc()
 				rowsLoadedCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.RowCount)
 				errorRowCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.ErrorCount)
 				parsedRowCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.RowParsed)
@@ -520,12 +539,12 @@ func gatherWarehouseMetrics(db *sql.DB) {
 		return
 	}
 
-	log.Debug("Processing warehouse billing")
+	// log.Debug("Processing warehouse billing")
 	warehouse := &warehouseBilling{}
 	for rows.Next() {
 		rows.StructScan(warehouse)
 
-		log.Debug("test", warehouse)
+		// log.Debug("test", warehouse)
 	}
 
 	rows.Close()
