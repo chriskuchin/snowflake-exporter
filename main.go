@@ -384,26 +384,21 @@ func gatherQueryMetrics(db *sql.DB) {
 }
 
 type copy struct {
-	FileName       string `db:"FILE_NAME"`
-	TargetDatabase string `db:"TABLE_CATALOG_NAME"`
-	TargetSchema   string `db:"TABLE_SCHEMA_NAME"`
-	TableName      string `db:"TABLE_NAME"`
-	PipeDatabase   string `db:"PIPE_CATALOG_NAME"`
-	PipeSchema     string `db:"PIPE_SCHEMA_NAME"`
-	PipeName       string `db:"PIPE_NAME"`
-
-	RowCount  float64 `db:"ROW_COUNT"`
-	RowParsed float64 `db:"ROW_PARSED"`
-	FileSize  float64 `db:"FILE_SIZE"`
-
-	FirstErrorMessage string `db:"FIRST_ERROR_MESSAGE"`
-
+	FileName   string  `db:"FILE_NAME"`
+	RowCount   float64 `db:"ROW_COUNT"`
+	RowParsed  float64 `db:"ROW_PARSED"`
+	FileSize   float64 `db:"FILE_SIZE"`
 	ErrorCount float64 `db:"ERROR_COUNT"`
 	Status     string  `db:"STATUS"`
+	Table      string  `db:"TABLE_NAME"`
+	Schema     string  `db:"TABLE_SCHEMA_NAME"`
+	Database   string  `db:"TABLE_CATALOG_NAME"`
 }
 
+//  ROW_COUNT ROW_PARSED FILE_SIZE FIRST_ERROR_MESSAGE FIRST_ERROR_LINE_NUMBER FIRST_ERROR_CHARACTER_POS ERROR_COUNT ERROR_LIMIT STATUS  TABLE_SCHEMA_NAME TABLE_NAME PIPE_CATALOG_NAME PIPE_SCHEMA_NAME PIPE_NAME PIPE_RECEIVED_TIME
+
 var (
-	copyLabels        = []string{"target_table", "target_schema", "target_database", "pipe_name", "pipe_schema", "pipe_database", "status"}
+	copyLabels        = []string{"table", "schema", "database", "status"}
 	rowsLoadedCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name:        "rows_loaded_count",
 		Subsystem:   "copy",
@@ -440,7 +435,7 @@ var (
 		Subsystem:   "copy",
 		Namespace:   "snowflake",
 		ConstLabels: prometheus.Labels{"account": account},
-	}, []string{"target_table", "target_schema", "target_database", "pipe_name", "pipe_schema", "pipe_database"})
+	}, copyLabels)
 )
 
 func gatherCopyMetrics(db *sql.DB) {
@@ -448,7 +443,8 @@ func gatherCopyMetrics(db *sql.DB) {
 
 	for {
 		for _, table := range copyTables {
-			rows, err := runQuery(fmt.Sprintf("select * from table(information_schema.copy_history(TABLE_NAME=>'%s', START_TIME=> DATEADD(minutes, -10, CURRENT_TIMESTAMP())));", table), db)
+			query := fmt.Sprintf("select * from table(information_schema.copy_history(TABLE_NAME=>'%s', START_TIME=> DATEADD(hour, -1, CURRENT_TIMESTAMP())));", table)
+			rows, err := runQuery(query, db)
 			if err != nil {
 				log.Errorf("Failed to query db for copy history. %+v", err)
 				continue
@@ -457,15 +453,16 @@ func gatherCopyMetrics(db *sql.DB) {
 			copy := &copy{}
 			for rows.Next() {
 				rows.StructScan(copy)
+				log.Debug("CopyHistory: ", copy)
 
-				copyCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Inc()
+				copyCounter.WithLabelValues(copy.Table, copy.Schema, copy.Database, copy.Status).Inc()
 				if copy.Status == "LOADED" {
-					successGauge.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Set(1)
+					successGauge.WithLabelValues(copy.Table, copy.Schema, copy.Database, copy.Status).Set(1)
 				}
 
-				rowsLoadedCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.RowCount)
-				errorRowCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.ErrorCount)
-				parsedRowCounter.WithLabelValues(copy.TableName, copy.TargetSchema, copy.TargetDatabase, copy.PipeName, copy.PipeSchema, copy.PipeDatabase, copy.Status).Add(copy.RowParsed)
+				rowsLoadedCounter.WithLabelValues(copy.Table, copy.Schema, copy.Database, copy.Status).Add(copy.RowCount)
+				errorRowCounter.WithLabelValues(copy.Table, copy.Schema, copy.Database, copy.Status).Add(copy.ErrorCount)
+				parsedRowCounter.WithLabelValues(copy.Table, copy.Schema, copy.Database, copy.Status).Add(copy.RowParsed)
 			}
 
 			rows.Close()
@@ -561,4 +558,30 @@ func runQuery(query string, db *sql.DB) (*sqlx.Rows, error) {
 	rows, err := unsafe.Queryx(query)
 
 	return rows, err
+}
+
+func dumpQueryResults(rows *sqlx.Rows) {
+	columns, _ := rows.Columns()
+
+	values := make([]sql.RawBytes, len(columns))
+	scanArgs := make([]interface{}, len(values))
+	log.Info(columns)
+	for i := range values {
+		scanArgs[i] = &values[i]
+	}
+	for rows.Next() {
+		rows.Scan(scanArgs...)
+		var value string
+		for i, col := range values {
+			// Here we can check if the value is nil (NULL value)
+			if col == nil {
+				value = "NULL"
+			} else {
+				value = string(col)
+			}
+			fmt.Println(columns[i], ": ", value)
+		}
+		fmt.Println("-----------------------------------") // rows.StructScan(copy)
+
+	}
 }
