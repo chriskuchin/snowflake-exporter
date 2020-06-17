@@ -201,20 +201,20 @@ func main() {
 				go gatherQueryMetrics(db)
 			}
 
-			// if !disableWarehouseUsageCollection {
-			// 	log.Debug("Enabling Warehouse Usage Metrics")
-			// 	go gatherWarehouseMetrics(db)
-			// }
+			if !disableWarehouseUsageCollection {
+				log.Debug("Enabling Warehouse Usage Metrics")
+				go gatherWarehouseMetrics(db)
+			}
 
-			// if !disableCopyMetricCollection {
-			// 	log.Debug("Enabling Copy Metrics")
-			// 	go gatherCopyMetrics(db)
-			// }
+			if !disableCopyMetricCollection {
+				log.Debug("Enabling Copy Metrics")
+				go gatherCopyMetrics(db)
+			}
 
-			// if !disableTaskMetricCollection {
-			// 	log.Debug("Enabling Task Metrics")
-			// 	go gatherTaskMetrics(db)
-			// }
+			if !disableTaskMetricCollection {
+				log.Debug("Enabling Task Metrics")
+				go gatherTaskMetrics(db)
+			}
 
 			log.Debugf("Starting metrics server on port: %d path: %s", port, path)
 			http.Handle(path, promhttp.Handler())
@@ -227,15 +227,15 @@ func main() {
 }
 
 type query struct {
-	ID        string `db:"QUERY_ID"`
-	Text      string `db:"QUERY_TEXT"`
-	Status    string `db:"EXECUTION_STATUS"`
-	User      string `db:"USER_NAME"`
-	Warehouse string `db:"WAREHOUSE_NAME"`
-	Schema    string `db:"SCHEMA_NAME"`
-	Database  string `db:"DATABASE_NAME"`
-	// ErrorCode              string  `db:"ERROR_CODE"`
-	// ErrorMessage           string  `db:"ERROR_MESSAGE"`
+	ID                     string  `db:"QUERY_ID"`
+	Text                   string  `db:"QUERY_TEXT"`
+	Status                 string  `db:"EXECUTION_STATUS"`
+	User                   string  `db:"USER_NAME"`
+	Warehouse              string  `db:"WAREHOUSE_NAME"`
+	Schema                 string  `db:"SCHEMA_NAME"`
+	Database               string  `db:"DATABASE_NAME"`
+	ErrorCode              *string `db:"ERROR_CODE"`
+	ErrorMessage           *string `db:"ERROR_MESSAGE"`
 	ElapsedTime            float64 `db:"TOTAL_ELAPSED_TIME"`
 	BytesScanned           float64 `db:"BYTES_SCANNED"`
 	RowsProduced           float64 `db:"ROWS_PRODUCED"`
