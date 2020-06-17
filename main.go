@@ -201,20 +201,20 @@ func main() {
 				go gatherQueryMetrics(db)
 			}
 
-			if !disableWarehouseUsageCollection {
-				log.Debug("Enabling Warehouse Usage Metrics")
-				go gatherWarehouseMetrics(db)
-			}
+			// if !disableWarehouseUsageCollection {
+			// 	log.Debug("Enabling Warehouse Usage Metrics")
+			// 	go gatherWarehouseMetrics(db)
+			// }
 
-			if !disableCopyMetricCollection {
-				log.Debug("Enabling Copy Metrics")
-				go gatherCopyMetrics(db)
-			}
+			// if !disableCopyMetricCollection {
+			// 	log.Debug("Enabling Copy Metrics")
+			// 	go gatherCopyMetrics(db)
+			// }
 
-			if !disableTaskMetricCollection {
-				log.Debug("Enabling Task Metrics")
-				go gatherTaskMetrics(db)
-			}
+			// if !disableTaskMetricCollection {
+			// 	log.Debug("Enabling Task Metrics")
+			// 	go gatherTaskMetrics(db)
+			// }
 
 			log.Debugf("Starting metrics server on port: %d path: %s", port, path)
 			http.Handle(path, promhttp.Handler())
@@ -227,15 +227,15 @@ func main() {
 }
 
 type query struct {
-	ID                     string  `db:"QUERY_ID"`
-	Text                   string  `db:"QUERY_TEXT"`
-	Status                 string  `db:"EXECUTION_STATUS"`
-	User                   string  `db:"USER_NAME"`
-	Warehouse              string  `db:"WAREHOUSE_NAME"`
-	Schema                 string  `db:"SCHEMA_NAME"`
-	Database               string  `db:"DATABASE_NAME"`
-	ErrorCode              string  `db:"ERROR_CODE"`
-	ErrorMessage           string  `db:"ERROR_MESSAGE"`
+	ID        string `db:"QUERY_ID"`
+	Text      string `db:"QUERY_TEXT"`
+	Status    string `db:"EXECUTION_STATUS"`
+	User      string `db:"USER_NAME"`
+	Warehouse string `db:"WAREHOUSE_NAME"`
+	Schema    string `db:"SCHEMA_NAME"`
+	Database  string `db:"DATABASE_NAME"`
+	// ErrorCode              string  `db:"ERROR_CODE"`
+	// ErrorMessage           string  `db:"ERROR_MESSAGE"`
 	ElapsedTime            float64 `db:"TOTAL_ELAPSED_TIME"`
 	BytesScanned           float64 `db:"BYTES_SCANNED"`
 	RowsProduced           float64 `db:"ROWS_PRODUCED"`
@@ -355,27 +355,27 @@ func gatherQueryMetrics(db *sql.DB) {
 			queryCounter.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Inc()
 
 			bytesScannedCounter.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Add(query.BytesScanned)
-			// log.Debugf("bytes_scanned:%v user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.BytesScanned, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			log.Debugf("bytes_scanned:%v user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.BytesScanned, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
 
 			elapsedTimeHistogram.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Observe(query.ElapsedTime)
 			executionTimeHistogram.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Observe(query.Executiontime)
 			compilationTimeHistogram.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Observe(query.CompilationTime)
-			// log.Debugf("elapsed_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.ElapsedTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
-			// log.Debugf("execution_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.Executiontime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
-			// log.Debugf("compilation_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.CompilationTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			log.Debugf("elapsed_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.ElapsedTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			log.Debugf("execution_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.Executiontime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			log.Debugf("compilation_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.CompilationTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
 
 			rowsReturnedCounter.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Add(query.RowsProduced)
-			// log.Debugf("rows_returned=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.RowsProduced, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			log.Debugf("rows_returned=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.RowsProduced, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
 
 			queuedProvisionHistogram.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Observe(query.QueuedProvisioningTime)
 			queuedRepairHistogram.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Observe(query.QueuedRepairTime)
 			queuedOverloadHistogram.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Observe(query.QueuedOverloadTime)
-			// log.Debugf("queued_provision=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.QueuedProvisioningTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
-			// log.Debugf("queued_repair=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.QueuedRepairTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
-			// log.Debugf("queued_overload=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.QueuedOverloadTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			log.Debugf("queued_provision=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.QueuedProvisioningTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			log.Debugf("queued_repair=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.QueuedRepairTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			log.Debugf("queued_overload=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.QueuedOverloadTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
 
 			blockedTimeHistogram.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Observe(query.TransactionBlockedTime)
-			// log.Debugf("blocked_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.TransactionBlockedTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
+			log.Debugf("blocked_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", query.TransactionBlockedTime, query.User, query.Warehouse, query.Schema, query.Database, query.Status)
 		}
 
 		rows.Close()
