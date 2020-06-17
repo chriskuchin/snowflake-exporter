@@ -36,7 +36,7 @@ var (
 	debug bool
 
 	copyTables       []string
-	histogramBuckets = []float64{50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1250, 1500, 1750, 2000, 2500, 5000, 10000}
+	histogramBuckets = []float64{0, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1250, 1500, 1750, 2000, 2500, 5000, 10000}
 )
 
 func main() {
@@ -355,6 +355,7 @@ func gatherQueryMetrics(db *sql.DB) {
 			queryCounter.WithLabelValues(query.User, query.Warehouse, query.Schema, query.Database, query.Status).Inc()
 
 			if query.Status == "RUNNING" {
+				log.Debug("Skipping Running query since there aren't metrics for it")
 				continue
 			}
 
