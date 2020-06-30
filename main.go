@@ -517,7 +517,7 @@ func gatherTaskMetrics(db *sql.DB) {
 				continue
 			}
 
-			taskRunCounter.WithLabelValues(task.State, task.Name, task.Schema, task.Database).Add(1)
+			taskRunCounter.WithLabelValues(task.State, task.Name, task.Schema, task.Database).Inc()
 		}
 
 		rows.Close()
