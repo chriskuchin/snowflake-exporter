@@ -511,12 +511,14 @@ func gatherTaskMetrics(db *sql.DB) {
 		task := &task{}
 		for rows.Next() {
 			rows.StructScan(task)
+			log.Info(task)
 
 			taskRunCounter.WithLabelValues(task.State, task.Name, task.Schema, task.Database).Add(1)
 
-			rows.Close()
-			time.Sleep(10 * time.Minute)
 		}
+
+		rows.Close()
+		time.Sleep(10 * time.Minute)
 	}
 }
 
