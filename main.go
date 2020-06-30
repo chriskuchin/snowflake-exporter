@@ -480,13 +480,11 @@ func gatherCopyMetrics(db *sql.DB) {
 }
 
 type task struct {
-	ID           string `db:"QUERY_ID"`
-	Name         string `db:"NAME"`
-	Database     string `db:"DATABASE_NAME"`
-	Schema       string `db:"SCHEMA_NAME"`
-	State        string `db:"STATE"`
-	ErrorCode    string `db:"ERROR_CODE"`
-	ErrorMessage string `db:"ERROR_MESSAGE"`
+	ID       string `db:"QUERY_ID"`
+	Name     string `db:"NAME"`
+	Database string `db:"DATABASE_NAME"`
+	Schema   string `db:"SCHEMA_NAME"`
+	State    string `db:"STATE"`
 }
 
 var (
