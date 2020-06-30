@@ -487,7 +487,7 @@ type task struct {
 }
 
 var (
-	taskLabels     = []string{"state", "task", "schema", "database", "error_code"}
+	taskLabels     = []string{"state", "task", "schema", "database"}
 	taskRunCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name:        "run_count",
 		Subsystem:   "task",
@@ -510,7 +510,7 @@ func gatherTaskMetrics(db *sql.DB) {
 		for rows.Next() {
 			rows.StructScan(task)
 
-			taskRunCounter.WithLabelValues(task.State, task.Name, task.Schema, task.Database, task.ErrorCode).Add(1)
+			taskRunCounter.WithLabelValues(task.State, task.Name, task.Schema, task.Database).Add(1)
 
 			rows.Close()
 			time.Sleep(10 * time.Minute)
