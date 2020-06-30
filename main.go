@@ -512,6 +512,7 @@ func gatherTaskMetrics(db *sql.DB) {
 		for rows.Next() {
 			rows.StructScan(task)
 			// skip tasks that will run in the future
+			log.Infof("%+v", task)
 			if task.State == "SCHEDULED" {
 				continue
 			}
