@@ -511,7 +511,10 @@ func gatherTaskMetrics(db *sql.DB) {
 		task := &task{}
 		for rows.Next() {
 			rows.StructScan(task)
-			log.Info(task)
+			// skip tasks that will run in the future
+			if task.State == "SCHEDULED" {
+				continue
+			}
 
 			taskRunCounter.WithLabelValues(task.State, task.Name, task.Schema, task.Database).Add(1)
 
