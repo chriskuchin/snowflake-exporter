@@ -345,6 +345,7 @@ func gatherQueryMetrics(db *sql.DB) {
 		rows, err := unsafe.Queryx("select * from table(information_schema.query_history(END_TIME_RANGE_START=>DATEADD(minutes, -10, CURRENT_TIMESTAMP())));")
 		if err != nil {
 			log.Errorf("Failed to query db for query history. %+v", err)
+			time.Sleep(1 * time.Minute)
 			continue
 		}
 
@@ -356,6 +357,7 @@ func gatherQueryMetrics(db *sql.DB) {
 
 			if query.Status == "RUNNING" {
 				log.Debug("Skipping Running query since there aren't metrics for it")
+				time.Sleep(1 * time.Minute)
 				continue
 			}
 
@@ -452,6 +454,7 @@ func gatherCopyMetrics(db *sql.DB) {
 			rows, err := runQuery(query, db)
 			if err != nil {
 				log.Errorf("Failed to query db for copy history. %+v", err)
+				time.Sleep(1 * time.Minute)
 				continue
 			}
 
@@ -503,6 +506,7 @@ func gatherTaskMetrics(db *sql.DB) {
 		rows, err := runQuery("select * from table(information_schema.task_history(scheduled_time_range_start=>dateadd('minute',-10,current_timestamp())));", db)
 		if err != nil {
 			log.Errorf("Failed to query db for task history. %+v", err)
+			time.Sleep(1 * time.Minute)
 			continue
 		}
 
