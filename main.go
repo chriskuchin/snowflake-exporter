@@ -480,7 +480,6 @@ func gatherCopyMetrics(db *sql.DB) {
 }
 
 type task struct {
-	ID       string `db:"QUERY_ID"`
 	Name     string `db:"NAME"`
 	Database string `db:"DATABASE_NAME"`
 	Schema   string `db:"SCHEMA_NAME"`
