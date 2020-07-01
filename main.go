@@ -525,17 +525,29 @@ func gatherTaskMetrics(db *sql.DB) {
 }
 
 var (
-	warehouseCreditsUsed = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name:      "",
+	warehouseTotalCreditsUsed = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name:      "credits_total",
 		Subsystem: "warehouse",
 		Namespace: "snowflake",
-		Help:      "",
-	}, []string{})
+		Help:      "Total credits consumed for the past hour by the particular warehouse",
+	}, []string{"warehouse"})
+
+	warehouseCloudCreditsUsed = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name:      "credits_cloud",
+		Subsystem: "warehouse",
+		Namespace: "snowflake",
+		Help:      "Total cloud credits consumed by the warehouse in the past hour",
+	}, []string{"warehouse"})
+
+	warehouseComputeCreditsUsed = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name:      "credits_compute",
+		Subsystem: "warehouse",
+		Namespace: "snowflake",
+		Help:      "Total compute credits used in the last timeframe",
+	}, []string{"warehouse"})
 )
 
 type warehouseBilling struct {
-	Start              string  `db:"START_TIME"`
-	End                string  `db:"END_TIME"`
 	Warehouse          string  `db:"WAREHOUSE_NAME"`
 	CreditsUsed        float64 `db:"CREDITS_USED"`
 	CreditsUsedCompute float64 `db:"CREDITS_USED_COMPUTE"`
@@ -544,24 +556,30 @@ type warehouseBilling struct {
 
 // Need to specify the list of warehouses to monitor
 func gatherWarehouseMetrics(db *sql.DB) {
-	// for {
-	rows, err := runQuery("select * from table(information_schema.warehouse_metering_history(dateadd('hour',-1,current_date())));", db)
-	if err != nil {
-		log.Errorf("Failed to gather warehouse metrics: %+v\n", err)
-		return
+	prometheus.MustRegister(warehouseTotalCreditsUsed, warehouseCloudCreditsUsed, warehouseComputeCreditsUsed)
+	for {
+		rows, err := runQuery("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => dateadd('minute',-10,current_timestamp())));", db)
+		if err != nil {
+			log.Errorf("Failed to gather warehouse metrics: %+v\n", err)
+			time.Sleep(1 * time.Minute)
+			return
+		}
+
+		log.Debug("Processing warehouse billing")
+		warehouse := &warehouseBilling{}
+		for rows.Next() {
+			rows.StructScan(warehouse)
+
+			log.Debug("Warehouse-metering: ", warehouse)
+
+			warehouseCloudCreditsUsed.WithLabelValues(warehouse.Warehouse).Add(warehouse.CreditsUsedCloud)
+			warehouseComputeCreditsUsed.WithLabelValues(warehouse.Warehouse).Add(warehouse.CreditsUsedCompute)
+			warehouseTotalCreditsUsed.WithLabelValues(warehouse.Warehouse).Add(warehouse.CreditsUsed)
+		}
+
+		rows.Close()
+		time.Sleep(10 * time.Minute)
 	}
-
-	// log.Debug("Processing warehouse billing")
-	warehouse := &warehouseBilling{}
-	for rows.Next() {
-		rows.StructScan(warehouse)
-
-		// log.Debug("test", warehouse)
-	}
-
-	rows.Close()
-	// time.Sleep(10 * time.Minute)
-	// }
 }
 
 func runQuery(query string, db *sql.DB) (*sqlx.Rows, error) {
