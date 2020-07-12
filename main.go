@@ -27,6 +27,7 @@ var (
 	port            int
 	path            string
 	role            string
+	interval        time.Duration
 
 	disableQueryCollection          bool
 	disableWarehouseUsageCollection bool
@@ -171,6 +172,14 @@ func main() {
 				Destination: &debug,
 				EnvVars: []string{
 					"DEBUG",
+				},
+			},
+			&cli.DurationFlag{
+				Name:        "interval",
+				Value:       10 * time.Minute,
+				Destination: &interval,
+				EnvVars: []string{
+					"INTERVAL",
 				},
 			},
 		},
@@ -341,8 +350,7 @@ func gatherQueryMetrics(db *sql.DB) {
 	prometheus.MustRegister(bytesScannedCounter, rowsReturnedCounter, elapsedTimeHistogram, executionTimeHistogram, compilationTimeHistogram, queuedProvisionHistogram, queuedRepairHistogram, queuedOverloadHistogram, blockedTimeHistogram, queryCounter)
 
 	for {
-		unsafe := sqlx.NewDb(db, "snowflake").Unsafe()
-		rows, err := unsafe.Queryx("select * from table(information_schema.query_history(END_TIME_RANGE_START=>DATEADD(minutes, -10, CURRENT_TIMESTAMP())));")
+		rows, err := runQuery(fmt.Sprintf("select * from table(information_schema.query_history(END_TIME_RANGE_START=>DATEADD(minutes, -%f, CURRENT_TIMESTAMP())));", interval.Minutes()), db)
 		if err != nil {
 			log.Errorf("Failed to query db for query history. %+v", err)
 			time.Sleep(1 * time.Minute)
@@ -386,7 +394,7 @@ func gatherQueryMetrics(db *sql.DB) {
 		}
 
 		rows.Close()
-		time.Sleep(10 * time.Minute)
+		time.Sleep(interval)
 	}
 }
 
@@ -450,7 +458,7 @@ func gatherCopyMetrics(db *sql.DB) {
 
 	for {
 		for _, table := range copyTables {
-			query := fmt.Sprintf("select * from table(information_schema.copy_history(TABLE_NAME=>'%s', START_TIME=> DATEADD(hour, -1, CURRENT_TIMESTAMP())));", table)
+			query := fmt.Sprintf("select * from table(information_schema.copy_history(TABLE_NAME=>'%s', START_TIME=> DATEADD(minute, -%f, CURRENT_TIMESTAMP())));", table, interval.Minutes())
 			rows, err := runQuery(query, db)
 			if err != nil {
 				log.Errorf("Failed to query db for copy history. %+v", err)
@@ -475,7 +483,7 @@ func gatherCopyMetrics(db *sql.DB) {
 
 			rows.Close()
 		}
-		time.Sleep(10 * time.Minute)
+		time.Sleep(interval)
 	}
 }
 
@@ -500,7 +508,7 @@ var (
 func gatherTaskMetrics(db *sql.DB) {
 	prometheus.MustRegister(taskRunCounter)
 	for {
-		rows, err := runQuery("select * from table(information_schema.task_history(scheduled_time_range_start=>dateadd('minute',-10,current_timestamp())));", db)
+		rows, err := runQuery(fmt.Sprintf("select * from table(information_schema.task_history(scheduled_time_range_start=>dateadd('minute',-%f,current_timestamp())));", interval.Minutes()), db)
 		if err != nil {
 			log.Errorf("Failed to query db for task history. %+v", err)
 			time.Sleep(1 * time.Minute)
@@ -520,7 +528,7 @@ func gatherTaskMetrics(db *sql.DB) {
 		}
 
 		rows.Close()
-		time.Sleep(10 * time.Minute)
+		time.Sleep(interval)
 	}
 }
 
@@ -558,7 +566,7 @@ type warehouseBilling struct {
 func gatherWarehouseMetrics(db *sql.DB) {
 	prometheus.MustRegister(warehouseTotalCreditsUsed, warehouseCloudCreditsUsed, warehouseComputeCreditsUsed)
 	for {
-		rows, err := runQuery("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => dateadd('minute',-10,current_timestamp())));", db)
+		rows, err := runQuery(fmt.Sprintf("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => dateadd('minute',-%f,current_timestamp())));", interval.Minutes()), db)
 		if err != nil {
 			log.Errorf("Failed to gather warehouse metrics: %+v\n", err)
 			time.Sleep(1 * time.Minute)
@@ -578,7 +586,7 @@ func gatherWarehouseMetrics(db *sql.DB) {
 		}
 
 		rows.Close()
-		time.Sleep(10 * time.Minute)
+		time.Sleep(interval)
 	}
 }
 
