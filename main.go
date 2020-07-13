@@ -279,6 +279,7 @@ func collect() {
 		// suspend the warehouse
 
 		duration := time.Since(start)
+		exporterQueryCycleTime.Observe(float64(duration.Milliseconds()))
 		log.Infof("Execution of collect cycle took: %v", duration)
 
 		log.Info(interval)
@@ -306,7 +307,18 @@ func triggerCollectCycle() {
 	}
 }
 
+var (
+	exporterQueryCycleTime = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:        "query_time_ms",
+		Subsystem:   "exporter",
+		Namespace:   "snowflake",
+		Help:        "",
+		ConstLabels: prometheus.Labels{"account": account},
+	})
+)
+
 func registerMetrics() {
+	prometheus.MustRegister(exporterQueryCycleTime)
 	// Query Metrics
 	prometheus.MustRegister(bytesScannedCounter, rowsReturnedCounter, elapsedTimeHistogram, executionTimeHistogram, compilationTimeHistogram, queuedProvisionHistogram, queuedRepairHistogram, queuedOverloadHistogram, blockedTimeHistogram, queryCounter)
 
