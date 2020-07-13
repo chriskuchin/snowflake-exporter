@@ -312,7 +312,7 @@ var (
 		Name:        "query_time_ms",
 		Subsystem:   "exporter",
 		Namespace:   "snowflake",
-		Help:        "",
+		Help:        "Total time the exporter spent running queries against snowflake",
 		ConstLabels: prometheus.Labels{"account": account},
 	})
 )
