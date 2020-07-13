@@ -281,8 +281,6 @@ func collect() {
 		duration := time.Since(start)
 		exporterQueryCycleTime.Observe(float64(duration.Milliseconds()))
 		log.Infof("Execution of collect cycle took: %v", duration)
-
-		log.Info(interval)
 		time.Sleep(interval)
 	}
 }
@@ -674,7 +672,7 @@ type warehouseBilling struct {
 func gatherWarehouseMetrics(db *sql.DB, start chan bool, done chan bool) {
 	for range start {
 		if !dry {
-			rows, err := runQuery(fmt.Sprintf("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => dateadd('minute',-%f,current_timestamp())));", interval.Minutes()), db)
+			rows, err := runQuery(fmt.Sprintf("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => timeadd('minute',-%d,current_timestamp())));", int64(interval.Minutes())), db)
 			if err != nil {
 				log.Errorf("Failed to gather warehouse metrics: %+v\n", err)
 				done <- true
