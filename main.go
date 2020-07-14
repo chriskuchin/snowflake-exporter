@@ -673,25 +673,32 @@ type warehouseBilling struct {
 
 // Need to specify the list of warehouses to monitor
 func gatherWarehouseMetrics(db *sql.DB, start chan bool, done chan bool) {
+	var lastRun time.Time = time.Now()
 	for range start {
 		if !dry {
-			query := fmt.Sprintf("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => to_timestamp_ltz('%s'), DATE_RANGE_END => current_timestamp()));", time.Now().Add(-interval).Format(time.RFC3339))
+			loopStart := time.Now()
+			start := lastRun
+			if time.Now().Sub(lastRun) < interval {
+				log.Debug("[WarehouseUsage] First run calculating %v ago.", interval)
+				start = time.Now().Add(-interval)
+			}
+			lastRun = loopStart
+			query := fmt.Sprintf("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => to_timestamp_ltz('%s'), DATE_RANGE_END => current_timestamp()));", start.Format(time.RFC3339))
 			log.Debugf("[WarehouseUsage] Query: %s", query)
 			rows, err := runQuery(query, db)
 			if err != nil {
-				log.Errorf("Failed to gather warehouse metrics: %+v\n", err)
+				log.Errorf("[WarehouseUsage] Failed to gather warehouse metrics: %+v\n", err)
 				done <- true
 				continue
 			}
 
 			done <- true
 
-			log.Debug("Processing warehouse billing")
 			warehouse := &warehouseBilling{}
 			for rows.Next() {
 				rows.StructScan(warehouse)
 
-				log.Debug("Warehouse-metering: ", warehouse)
+				log.Debugf("[WarehouseUsage] row: %+v", warehouse)
 
 				warehouseCloudCreditsUsed.WithLabelValues(warehouse.Warehouse).Add(warehouse.CreditsUsedCloud)
 				warehouseComputeCreditsUsed.WithLabelValues(warehouse.Warehouse).Add(warehouse.CreditsUsedCompute)
