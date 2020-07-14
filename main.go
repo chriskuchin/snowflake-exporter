@@ -683,7 +683,7 @@ func gatherWarehouseMetrics(db *sql.DB, start chan bool, done chan bool) {
 				start = time.Now().Add(-interval)
 			}
 			lastRun = loopStart
-			query := fmt.Sprintf("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => to_timestamp_ltz('%s'), DATE_RANGE_END => current_timestamp()));", start.Add(-30*time.Second).Format(time.RFC3339))
+			query := fmt.Sprintf("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => to_timestamp_ltz('%s'), DATE_RANGE_END => current_timestamp()));", start.Add(-10*time.Second).Format(time.RFC3339))
 			log.Debugf("[WarehouseUsage] Query: %s", query)
 			rows, err := runQuery(query, db)
 			if err != nil {
