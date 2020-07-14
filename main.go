@@ -679,7 +679,7 @@ func gatherWarehouseMetrics(db *sql.DB, start chan bool, done chan bool) {
 			loopStart := time.Now()
 			start := lastRun
 			if time.Now().Sub(lastRun) < interval {
-				log.Debug("[WarehouseUsage] First run calculating %v ago.", interval)
+				log.Debugf("[WarehouseUsage] First run calculating %v ago.", interval)
 				start = time.Now().Add(-interval)
 			}
 			lastRun = loopStart
