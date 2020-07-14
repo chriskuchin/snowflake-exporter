@@ -643,21 +643,21 @@ func gatherTaskMetrics(db *sql.DB, start chan bool, done chan bool) {
 
 var (
 	warehouseTotalCreditsUsed = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name:      "hourly_credits_total",
+		Name:      "credits_total",
 		Subsystem: "warehouse",
 		Namespace: "snowflake",
 		Help:      "Total credits consumed for the past hour by the particular warehouse",
 	}, []string{"warehouse"})
 
 	warehouseCloudCreditsUsed = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name:      "hourly_credits_cloud",
+		Name:      "credits_cloud",
 		Subsystem: "warehouse",
 		Namespace: "snowflake",
 		Help:      "Total cloud credits consumed by the warehouse in the past hour",
 	}, []string{"warehouse"})
 
 	warehouseComputeCreditsUsed = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name:      "hourly_credits_compute",
+		Name:      "credits_compute",
 		Subsystem: "warehouse",
 		Namespace: "snowflake",
 		Help:      "Total compute credits used in the last timeframe",
@@ -673,17 +673,17 @@ type warehouseBilling struct {
 
 // Need to specify the list of warehouses to monitor
 func gatherWarehouseUsageMetrics(db *sql.DB, start chan bool, done chan bool) {
-	iteration := 0
+	var lastRun time.Time = time.Now()
 	for range start {
 		if !dry {
-			if iteration%6 == 0 {
-				iteration++
-				log.Debugf("[WarehouseUsage] Skipping for hourly collection: %d", iteration)
-				continue
+			loopStart := time.Now()
+			start := lastRun
+			if time.Now().Sub(lastRun) < interval {
+				log.Debugf("[WarehouseUsage] First run calculating %v ago.", interval)
+				start = time.Now().Add(-interval)
 			}
-			iteration++
-
-			query := fmt.Sprintf("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => timeadd('hours',-1,current_timestamp())));")
+			lastRun = loopStart
+			query := fmt.Sprintf("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => to_timestamp_ltz('%s'), DATE_RANGE_END => current_timestamp()));", start.Add(-10*time.Second).Format(time.RFC3339))
 			log.Debugf("[WarehouseUsage] Query: %s", query)
 			rows, err := runQuery(query, db)
 			if err != nil {
