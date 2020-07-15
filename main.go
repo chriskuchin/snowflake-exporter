@@ -452,7 +452,7 @@ var (
 func gatherQueryMetrics(db *sql.DB, start chan time.Time, done chan bool) {
 	for rangeStart := range start {
 		if !dry {
-			query := fmt.Sprintf("select * from table(information_schema.query_history(END_TIME_RANGE_START=>to_timestamp_ltz('%s'))));", rangeStart.Format(time.RFC3339))
+			query := fmt.Sprintf("select * from table(information_schema.query_history(END_TIME_RANGE_START => to_timestamp_ltz('%s'), END_TIME_RANGE_END => current_timestamp())));", rangeStart.Format(time.RFC3339))
 			log.Debugf("[QueryMetrics] Query: %s", query)
 			rows, err := runQuery(query, db)
 			if err != nil {
