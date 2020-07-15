@@ -1,0 +1,8 @@
+#!/bin/bash
+
+export GIT_SHA_SHORT=$(echo ${GIT_SHA} | cut -c1-7)
+
+printenv
+
+docker tag $IMAGE_NAME $DOCKER_REPO:$GIT_SHA_SHORT
+docker push $DOCKER_REPO:$GIT_SHA_SHORT
