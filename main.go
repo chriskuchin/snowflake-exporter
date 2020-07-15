@@ -270,6 +270,7 @@ func main() {
 func collect() {
 	var lastRun time.Time = time.Now()
 	for {
+		log.Debug("[Collect] Triggering a new collection cycle")
 		loopStart := time.Now()
 		trigger := lastRun
 		if time.Now().Sub(lastRun) < interval {
@@ -283,8 +284,6 @@ func collect() {
 		for a := 1; a <= jobCount; a++ {
 			<-queriesDone
 		}
-
-		// suspend the warehouse
 
 		duration := time.Since(loopStart)
 		exporterQueryCycleTime.Observe(float64(duration.Milliseconds()))
