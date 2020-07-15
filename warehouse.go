@@ -76,7 +76,7 @@ func GatherWarehouseUsageMetrics(db *sql.DB, start chan time.Time, done chan boo
 					warehouseComputeCreditsUsed.WithLabelValues(warehouse.Warehouse).Add(warehouse.CreditsUsedCompute)
 					warehouseTotalCreditsUsed.WithLabelValues(warehouse.Warehouse).Add(warehouse.CreditsUsed)
 				} else {
-					log.Debugf("[WarehouseUsage] skipped row: %+v")
+					log.Debugf("[WarehouseUsage] skipped row: %+v", warehouse)
 				}
 			}
 
