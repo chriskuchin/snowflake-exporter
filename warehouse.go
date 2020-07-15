@@ -39,8 +39,8 @@ type warehouseBilling struct {
 	CreditsUsedCloud   float64 `db:"CREDITS_USED_CLOUD_SERVICES"`
 }
 
-// Need to specify the list of warehouses to monitor
-func gatherWarehouseUsageMetrics(db *sql.DB, start chan time.Time, done chan bool) {
+// GatherWarehouseUsageMetrics collects various warehouse metering metrics
+func GatherWarehouseUsageMetrics(db *sql.DB, start chan time.Time, done chan bool) {
 	for rangeStart := range start {
 		if !dry {
 			query := fmt.Sprintf("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => to_timestamp_ltz('%s'), DATE_RANGE_END => current_timestamp()));", rangeStart.Format(time.RFC3339))

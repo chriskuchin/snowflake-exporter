@@ -228,14 +228,14 @@ func main() {
 				jobCount++
 				log.Debug("Enabling Query Metrics")
 				queryMetricsCollectChan = make(chan time.Time)
-				go gatherQueryMetrics(db, queryMetricsCollectChan, queriesDone)
+				go GatherQueryMetrics(db, queryMetricsCollectChan, queriesDone)
 			}
 
 			if !disableWarehouseUsageCollection {
 				jobCount++
 				log.Debug("Enabling Warehouse Usage Metrics")
 				warehouseUsageCollectChan = make(chan time.Time)
-				go gatherWarehouseUsageMetrics(db, warehouseUsageCollectChan, queriesDone)
+				go GatherWarehouseUsageMetrics(db, warehouseUsageCollectChan, queriesDone)
 			}
 
 			if !disableCopyMetricCollection {
@@ -244,7 +244,7 @@ func main() {
 					log.Debug("Enabling Copy Metrics")
 					channel := make(chan time.Time)
 					copyMetricsCollectChan = append(copyMetricsCollectChan, channel)
-					go gatherCopyMetrics(table, db, channel, queriesDone)
+					go GatherCopyMetrics(table, db, channel, queriesDone)
 				}
 			}
 
@@ -252,7 +252,7 @@ func main() {
 				jobCount++
 				log.Debug("Enabling Task Metrics")
 				taskMetricsCollectChan = make(chan time.Time)
-				go gatherTaskMetrics(db, taskMetricsCollectChan, queriesDone)
+				go GatherTaskMetrics(db, taskMetricsCollectChan, queriesDone)
 			}
 
 			go collect()

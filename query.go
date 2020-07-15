@@ -120,7 +120,8 @@ var (
 	}, queryLabels)
 )
 
-func gatherQueryMetrics(db *sql.DB, start chan time.Time, done chan bool) {
+// GatherQueryMetrics collects metrics about queries that have run
+func GatherQueryMetrics(db *sql.DB, start chan time.Time, done chan bool) {
 	for rangeStart := range start {
 		if !dry {
 			query := fmt.Sprintf("select * from table(information_schema.query_history(END_TIME_RANGE_START => to_timestamp_ltz('%s'), END_TIME_RANGE_END => current_timestamp()));", rangeStart.Format(time.RFC3339))
