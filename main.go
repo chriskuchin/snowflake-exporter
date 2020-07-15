@@ -43,10 +43,10 @@ var (
 	queriesDone chan bool
 	jobCount    int
 
-	queryMetricsCollectChan   chan bool
-	warehouseUsageCollectChan chan bool
-	taskMetricsCollectChan    chan bool
-	copyMetricsCollectChan    []chan bool
+	queryMetricsCollectChan   chan time.Time
+	warehouseUsageCollectChan chan time.Time
+	taskMetricsCollectChan    chan time.Time
+	copyMetricsCollectChan    []chan time.Time
 )
 
 func main() {
@@ -227,14 +227,14 @@ func main() {
 			if !disableQueryCollection {
 				jobCount++
 				log.Debug("Enabling Query Metrics")
-				queryMetricsCollectChan = make(chan bool)
+				queryMetricsCollectChan = make(chan time.Time)
 				go gatherQueryMetrics(db, queryMetricsCollectChan, queriesDone)
 			}
 
 			if !disableWarehouseUsageCollection {
 				jobCount++
 				log.Debug("Enabling Warehouse Usage Metrics")
-				warehouseUsageCollectChan = make(chan bool)
+				warehouseUsageCollectChan = make(chan time.Time)
 				go gatherWarehouseUsageMetrics(db, warehouseUsageCollectChan, queriesDone)
 			}
 
@@ -242,7 +242,7 @@ func main() {
 				for _, table := range copyTables {
 					jobCount++
 					log.Debug("Enabling Copy Metrics")
-					channel := make(chan bool)
+					channel := make(chan time.Time)
 					copyMetricsCollectChan = append(copyMetricsCollectChan, channel)
 					go gatherCopyMetrics(table, db, channel, queriesDone)
 				}
@@ -251,7 +251,7 @@ func main() {
 			if !disableTaskMetricCollection {
 				jobCount++
 				log.Debug("Enabling Task Metrics")
-				taskMetricsCollectChan = make(chan bool)
+				taskMetricsCollectChan = make(chan time.Time)
 				go gatherTaskMetrics(db, taskMetricsCollectChan, queriesDone)
 			}
 
@@ -268,9 +268,17 @@ func main() {
 }
 
 func collect() {
+	var lastRun time.Time = time.Now()
 	for {
-		start := time.Now()
-		triggerCollectCycle()
+		loopStart := time.Now()
+		trigger := lastRun
+		if time.Now().Sub(lastRun) < interval {
+			log.Debugf("[Collect] First run calculating %v ago.", interval)
+			trigger = time.Now().Add(-interval).Add(-10 * time.Second)
+		}
+		lastRun = loopStart
+
+		triggerCollectCycle(trigger)
 
 		for a := 1; a <= jobCount; a++ {
 			<-queriesDone
@@ -278,30 +286,30 @@ func collect() {
 
 		// suspend the warehouse
 
-		duration := time.Since(start)
+		duration := time.Since(loopStart)
 		exporterQueryCycleTime.Observe(float64(duration.Milliseconds()))
 		log.Debugf("Execution of collect cycle took: %v", duration)
 		time.Sleep(interval)
 	}
 }
 
-func triggerCollectCycle() {
+func triggerCollectCycle(triggerTime time.Time) {
 	if !disableCopyMetricCollection {
 		for _, c := range copyMetricsCollectChan {
-			c <- true
+			c <- triggerTime
 		}
 	}
 
 	if !disableWarehouseUsageCollection {
-		warehouseUsageCollectChan <- true
+		warehouseUsageCollectChan <- triggerTime
 	}
 
 	if !disableQueryCollection {
-		queryMetricsCollectChan <- true
+		queryMetricsCollectChan <- triggerTime
 	}
 
 	if !disableTaskMetricCollection {
-		taskMetricsCollectChan <- true
+		taskMetricsCollectChan <- triggerTime
 	}
 }
 
@@ -441,10 +449,10 @@ var (
 	}, queryLabels)
 )
 
-func gatherQueryMetrics(db *sql.DB, start chan bool, done chan bool) {
-	for range start {
+func gatherQueryMetrics(db *sql.DB, start chan time.Time, done chan bool) {
+	for rangeStart := range start {
 		if !dry {
-			query := fmt.Sprintf("select * from table(information_schema.query_history(END_TIME_RANGE_START=>DATEADD(minutes, -%f, CURRENT_TIMESTAMP())));", interval.Minutes())
+			query := fmt.Sprintf("select * from table(information_schema.query_history(END_TIME_RANGE_START=>to_timestamp_ltz('%s'))));", rangeStart.Format(time.RFC3339))
 			log.Debugf("[QueryMetrics] Query: %s", query)
 			rows, err := runQuery(query, db)
 			if err != nil {
@@ -552,10 +560,10 @@ var (
 	}, copyLabels)
 )
 
-func gatherCopyMetrics(table string, db *sql.DB, start chan bool, done chan bool) {
-	for range start {
+func gatherCopyMetrics(table string, db *sql.DB, start chan time.Time, done chan bool) {
+	for rangeStart := range start {
 		if !dry {
-			query := fmt.Sprintf("select * from table(information_schema.copy_history(TABLE_NAME => '%s', START_TIME=> to_timestamp_ltz('%s'), END_TIME => current_timestamp()));", table, time.Now().Add(-interval).Format(time.RFC3339))
+			query := fmt.Sprintf("select * from table(information_schema.copy_history(TABLE_NAME => '%s', START_TIME=> to_timestamp_ltz('%s'), END_TIME => current_timestamp()));", table, rangeStart.Format(time.RFC3339))
 			log.Debugf("[CopyMetrics] Query: %s", query)
 			rows, err := runQuery(query, db)
 			if err != nil {
@@ -607,10 +615,10 @@ var (
 	}, taskLabels)
 )
 
-func gatherTaskMetrics(db *sql.DB, start chan bool, done chan bool) {
-	for range start {
+func gatherTaskMetrics(db *sql.DB, start chan time.Time, done chan bool) {
+	for rangeStart := range start {
 		if !dry {
-			query := fmt.Sprintf("select * from table(information_schema.task_history(scheduled_time_range_start => to_timestamp_ltz('%s'), scheduled_time_range_end => current_timestamp()));", time.Now().Add(-interval).Format(time.RFC3339))
+			query := fmt.Sprintf("select * from table(information_schema.task_history(scheduled_time_range_start => to_timestamp_ltz('%s'), scheduled_time_range_end => current_timestamp()));", rangeStart.Format(time.RFC3339))
 			log.Debugf("[TaskMetrics] Query: %s", query)
 			rows, err := runQuery(query, db)
 			if err != nil {
@@ -672,18 +680,10 @@ type warehouseBilling struct {
 }
 
 // Need to specify the list of warehouses to monitor
-func gatherWarehouseUsageMetrics(db *sql.DB, start chan bool, done chan bool) {
-	var lastRun time.Time = time.Now()
-	for range start {
+func gatherWarehouseUsageMetrics(db *sql.DB, start chan time.Time, done chan bool) {
+	for rangeStart := range start {
 		if !dry {
-			loopStart := time.Now()
-			start := lastRun
-			if time.Now().Sub(lastRun) < interval {
-				log.Debugf("[WarehouseUsage] First run calculating %v ago.", interval)
-				start = time.Now().Add(-interval)
-			}
-			lastRun = loopStart
-			query := fmt.Sprintf("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => to_timestamp_ltz('%s'), DATE_RANGE_END => current_timestamp()));", start.Add(-10*time.Second).Format(time.RFC3339))
+			query := fmt.Sprintf("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => to_timestamp_ltz('%s'), DATE_RANGE_END => current_timestamp()));", rangeStart.Format(time.RFC3339))
 			log.Debugf("[WarehouseUsage] Query: %s", query)
 			rows, err := runQuery(query, db)
 			if err != nil {
