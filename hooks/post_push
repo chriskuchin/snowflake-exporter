@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export GIT_SHA_SHORT=$(echo ${GIT_SHA} | cut -c1-7)
+export GIT_SHA_SHORT=$(echo ${SOURCE_COMMIT} | cut -c1-7)
 
 printenv
 
