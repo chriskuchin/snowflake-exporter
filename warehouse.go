@@ -48,6 +48,7 @@ func GatherWarehouseUsageMetrics(db *sql.DB, start chan time.Time, done chan boo
 			/// calculate first tick after the hour
 			if float64(rangeStart.Minute()) > interval.Minutes() {
 				log.Debug("[WarehouseUsage] Not first tick after the hour, skipping collection")
+				done <- true
 				continue
 			}
 
