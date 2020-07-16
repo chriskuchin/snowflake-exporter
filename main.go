@@ -269,8 +269,11 @@ func main() {
 
 func collect() {
 	for {
-		log.Debug("[Collect] Triggering a new collection cycle")
+		sleep := time.Now().Truncate(interval).Add(interval).Sub(time.Now())
+		time.Sleep(sleep)
+
 		loopStart := time.Now()
+		log.Debug("[Collect] Triggering a new collection cycle")
 		triggerCollectCycle(loopStart)
 
 		for a := 1; a <= jobCount; a++ {
@@ -280,7 +283,6 @@ func collect() {
 		duration := time.Since(loopStart)
 		exporterQueryCycleTime.Observe(float64(duration.Milliseconds()))
 		log.Debugf("Execution of collect cycle took: %v", duration)
-		time.Sleep(interval)
 	}
 }
 
