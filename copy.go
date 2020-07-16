@@ -65,9 +65,11 @@ var (
 // GatherCopyMetrics collects metrics about copy statements that have run the last interval
 func GatherCopyMetrics(table string, db *sql.DB, start chan time.Time, done chan bool) {
 	for rangeStart := range start {
+		end := rangeStart.Truncate(interval)
+		start := end.Add(-interval)
+		query := fmt.Sprintf("select * from table(information_schema.copy_history(TABLE_NAME => '%s', START_TIME=> to_timestamp_ltz('%s'), END_TIME => to_timestamp_ltz('%s')));", table, start.Format(time.RFC3339), end.Format(time.RFC3339))
+		log.Debugf("[CopyMetrics] Query: %s", query)
 		if !dry {
-			query := fmt.Sprintf("select * from table(information_schema.copy_history(TABLE_NAME => '%s', START_TIME=> to_timestamp_ltz('%s'), END_TIME => current_timestamp()));", table, rangeStart.Format(time.RFC3339))
-			log.Debugf("[CopyMetrics] Query: %s", query)
 			rows, err := runQuery(query, db)
 			if err != nil {
 				log.Errorf("Failed to query db for copy history. %+v", err)

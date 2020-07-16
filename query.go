@@ -123,9 +123,11 @@ var (
 // GatherQueryMetrics collects metrics about queries that have run
 func GatherQueryMetrics(db *sql.DB, start chan time.Time, done chan bool) {
 	for rangeStart := range start {
+		end := rangeStart.Truncate(interval)
+		start := end.Add(-interval)
+		query := fmt.Sprintf("select * from table(information_schema.query_history(END_TIME_RANGE_START => to_timestamp_ltz('%s'), END_TIME_RANGE_END => to_timestamp_ltz('%s')));", start.Format(time.RFC3339), end.Format(time.RFC3339))
+		log.Debugf("[QueryMetrics] Query: %s", query)
 		if !dry {
-			query := fmt.Sprintf("select * from table(information_schema.query_history(END_TIME_RANGE_START => to_timestamp_ltz('%s'), END_TIME_RANGE_END => current_timestamp()));", rangeStart.Format(time.RFC3339))
-			log.Debugf("[QueryMetrics] Query: %s", query)
 			rows, err := runQuery(query, db)
 			if err != nil {
 				log.Errorf("[QueryMetrics] Failed to query db for query history. %+v", err)

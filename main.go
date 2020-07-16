@@ -268,18 +268,10 @@ func main() {
 }
 
 func collect() {
-	var lastRun time.Time = time.Now()
 	for {
 		log.Debug("[Collect] Triggering a new collection cycle")
 		loopStart := time.Now()
-		trigger := lastRun
-		if time.Now().Sub(lastRun) < interval {
-			log.Debugf("[Collect] First run calculating %v ago.", interval)
-			trigger = time.Now().Add(-interval).Add(-10 * time.Second)
-		}
-		lastRun = loopStart
-
-		triggerCollectCycle(trigger)
+		triggerCollectCycle(loopStart)
 
 		for a := 1; a <= jobCount; a++ {
 			<-queriesDone

@@ -30,9 +30,11 @@ var (
 // GatherTaskMetrics collects metrics about executed tasks
 func GatherTaskMetrics(db *sql.DB, start chan time.Time, done chan bool) {
 	for rangeStart := range start {
+		end := rangeStart.Truncate(interval)
+		start := end.Add(-interval)
+		query := fmt.Sprintf("select * from table(information_schema.task_history(scheduled_time_range_start => to_timestamp_ltz('%s'), scheduled_time_range_end => to_timestamp_ltz('%s')));", start.Format(time.RFC3339), end.Format(time.RFC3339))
+		log.Debugf("[TaskMetrics] Query: %s", query)
 		if !dry {
-			query := fmt.Sprintf("select * from table(information_schema.task_history(scheduled_time_range_start => to_timestamp_ltz('%s'), scheduled_time_range_end => current_timestamp()));", rangeStart.Format(time.RFC3339))
-			log.Debugf("[TaskMetrics] Query: %s", query)
 			rows, err := runQuery(query, db)
 			if err != nil {
 				log.Errorf("Failed to query db for task history. %+v", err)

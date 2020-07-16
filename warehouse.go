@@ -44,19 +44,19 @@ type warehouseBilling struct {
 // GatherWarehouseUsageMetrics collects various warehouse metering metrics
 func GatherWarehouseUsageMetrics(db *sql.DB, start chan time.Time, done chan bool) {
 	for rangeStart := range start {
+		/// calculate first tick after the hour
+		if float64(rangeStart.Minute()) > interval.Minutes() {
+			log.Debug("[WarehouseUsage] Not first tick after the hour, skipping collection")
+			done <- true
+			continue
+		}
+
+		end := rangeStart.Truncate(1 * time.Hour)
+		start := end.Add(-1 * time.Hour)
+
+		query := fmt.Sprintf("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => to_timestamp_ltz('%s'), DATE_RANGE_END => to_timestamp_ltz('%s')));", start.Format(time.RFC3339), end.Format(time.RFC3339))
+		log.Debugf("[WarehouseUsage] Query: %s", query)
 		if !dry {
-			/// calculate first tick after the hour
-			if float64(rangeStart.Minute()) > interval.Minutes() {
-				log.Debug("[WarehouseUsage] Not first tick after the hour, skipping collection")
-				done <- true
-				continue
-			}
-
-			end := rangeStart.Truncate(1 * time.Hour)
-			start := end.Add(-1 * time.Hour)
-
-			query := fmt.Sprintf("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => to_timestamp_ltz('%s'), DATE_RANGE_END => to_timestamp_ltz('%s')));", start.Format(time.RFC3339), end.Format(time.RFC3339))
-			log.Debugf("[WarehouseUsage] Query: %s", query)
 			rows, err := runQuery(query, db)
 			if err != nil {
 				log.Errorf("[WarehouseUsage] Failed to gather warehouse metrics: %+v\n", err)
