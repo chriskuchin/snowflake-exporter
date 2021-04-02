@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -259,6 +260,16 @@ func main() {
 
 			log.Debugf("Starting metrics server on port: %d path: %s", port, path)
 			http.Handle(path, promhttp.Handler())
+			http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
+				result := map[string]string{
+					"status": "ok",
+				}
+
+				payload, _ := json.Marshal(result)
+
+				w.WriteHeader(http.StatusOK)
+				w.Write(payload)
+			})
 			http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 
 			return err
