@@ -87,6 +87,8 @@ func GatherCopyMetrics(table string, db *sql.DB, start chan time.Time, done chan
 				copyCounter.WithLabelValues(copy.Table, copy.Schema, copy.Database, copy.Status).Inc()
 				if copy.Status == "LOADED" {
 					successGauge.WithLabelValues(copy.Table, copy.Schema, copy.Database, copy.Status).Set(1)
+				} else {
+					successGauge.WithLabelValues(copy.Table, copy.Schema, copy.Database, copy.Status).Set(0)
 				}
 
 				rowsLoadedCounter.WithLabelValues(copy.Table, copy.Schema, copy.Database, copy.Status).Add(copy.RowCount)
