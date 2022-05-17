@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -46,7 +46,7 @@ func GatherWarehouseUsageMetrics(db *sql.DB, start chan time.Time, done chan boo
 	for rangeStart := range start {
 		/// calculate first tick after the hour
 		if float64(rangeStart.Minute()) > interval.Minutes() {
-			log.Debug("[WarehouseUsage] Not first tick after the hour, skipping collection")
+			log.Debug().Msg("[WarehouseUsage] Not first tick after the hour, skipping collection")
 			done <- true
 			continue
 		}
@@ -55,11 +55,11 @@ func GatherWarehouseUsageMetrics(db *sql.DB, start chan time.Time, done chan boo
 		start := end.Add(-1 * time.Hour)
 
 		query := fmt.Sprintf("select * from table(information_schema.warehouse_metering_history(DATE_RANGE_START => to_timestamp_ltz('%s'), DATE_RANGE_END => to_timestamp_ltz('%s')));", start.Format(time.RFC3339), end.Format(time.RFC3339))
-		log.Debugf("[WarehouseUsage] Query: %s", query)
+		log.Debug().Msgf("[WarehouseUsage] Query: %s", query)
 		if !dry {
 			rows, err := runQuery(query, db)
 			if err != nil {
-				log.Errorf("[WarehouseUsage] Failed to gather warehouse metrics: %+v\n", err)
+				log.Error().Msgf("[WarehouseUsage] Failed to gather warehouse metrics: %+v\n", err)
 				done <- true
 				continue
 			}
@@ -71,19 +71,19 @@ func GatherWarehouseUsageMetrics(db *sql.DB, start chan time.Time, done chan boo
 				rows.StructScan(warehouse)
 
 				if warehouse.StartTime.Equal(start) {
-					log.Debugf("[WarehouseUsage] row: %+v", warehouse)
+					log.Debug().Msgf("[WarehouseUsage] row: %+v", warehouse)
 
 					warehouseCloudCreditsUsed.WithLabelValues(warehouse.Warehouse).Add(warehouse.CreditsUsedCloud)
 					warehouseComputeCreditsUsed.WithLabelValues(warehouse.Warehouse).Add(warehouse.CreditsUsedCompute)
 					warehouseTotalCreditsUsed.WithLabelValues(warehouse.Warehouse).Add(warehouse.CreditsUsed)
 				} else {
-					log.Debugf("[WarehouseUsage] skipped row: %+v", warehouse)
+					log.Debug().Msgf("[WarehouseUsage] skipped row: %+v", warehouse)
 				}
 			}
 
 			rows.Close()
 		} else {
-			log.Info("[WarehouseUsage] Skipping query execution due to presence of dry-run flag")
+			log.Info().Msg("[WarehouseUsage] Skipping query execution due to presence of dry-run flag")
 			done <- true
 		}
 	}
