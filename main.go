@@ -13,9 +13,9 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/snowflakedb/gosnowflake"
-	_ "github.com/snowflakedb/gosnowflake"
 )
 
 var (
@@ -203,7 +203,7 @@ func main() {
 		},
 		Action: func(c *cli.Context) error {
 			if debug {
-				log.Base().SetLevel("DEBUG")
+				zerolog.SetGlobalLevel(zerolog.DebugLevel)
 			}
 
 			registerMetrics()
@@ -221,20 +221,20 @@ func main() {
 			})
 			db, err := sql.Open("snowflake", url)
 			if err != nil {
-				log.Fatal("Failed to connect: ", err)
+				log.Fatal().Msgf("Failed to connect: %+v", err)
 			}
 			defer db.Close()
 
 			if !disableQueryCollection {
 				jobCount++
-				log.Debug("Enabling Query Metrics")
+				log.Debug().Msg("Enabling Query Metrics")
 				queryMetricsCollectChan = make(chan time.Time)
 				go GatherQueryMetrics(db, queryMetricsCollectChan, queriesDone)
 			}
 
 			if !disableWarehouseUsageCollection {
 				jobCount++
-				log.Debug("Enabling Warehouse Usage Metrics")
+				log.Debug().Msg("Enabling Warehouse Usage Metrics")
 				warehouseUsageCollectChan = make(chan time.Time)
 				go GatherWarehouseUsageMetrics(db, warehouseUsageCollectChan, queriesDone)
 			}
@@ -242,7 +242,7 @@ func main() {
 			if !disableCopyMetricCollection {
 				for _, table := range copyTables {
 					jobCount++
-					log.Debug("Enabling Copy Metrics")
+					log.Debug().Msg("Enabling Copy Metrics")
 					channel := make(chan time.Time)
 					copyMetricsCollectChan = append(copyMetricsCollectChan, channel)
 					go GatherCopyMetrics(table, db, channel, queriesDone)
@@ -251,14 +251,14 @@ func main() {
 
 			if !disableTaskMetricCollection {
 				jobCount++
-				log.Debug("Enabling Task Metrics")
+				log.Debug().Msg("Enabling Task Metrics")
 				taskMetricsCollectChan = make(chan time.Time)
 				go GatherTaskMetrics(db, taskMetricsCollectChan, queriesDone)
 			}
 
 			go collect()
 
-			log.Debugf("Starting metrics server on port: %d path: %s", port, path)
+			log.Debug().Msgf("Starting metrics server on port: %d path: %s", port, path)
 			http.Handle(path, promhttp.Handler())
 			http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 				result := map[string]string{
@@ -280,11 +280,11 @@ func main() {
 
 func collect() {
 	for {
-		sleep := time.Now().Truncate(interval).Add(interval).Sub(time.Now())
+		sleep := time.Until(time.Now().Truncate(interval).Add(interval))
 		time.Sleep(sleep)
 
 		loopStart := time.Now()
-		log.Debug("[Collect] Triggering a new collection cycle")
+		log.Debug().Msg("[Collect] Triggering a new collection cycle")
 		triggerCollectCycle(loopStart)
 
 		for a := 1; a <= jobCount; a++ {
@@ -293,7 +293,7 @@ func collect() {
 
 		duration := time.Since(loopStart)
 		exporterQueryCycleTime.Observe(float64(duration.Milliseconds()))
-		log.Debugf("Execution of collect cycle took: %v", duration)
+		log.Debug().Msgf("Execution of collect cycle took: %v", duration)
 	}
 }
 
@@ -349,28 +349,28 @@ func runQuery(query string, db *sql.DB) (*sqlx.Rows, error) {
 	return rows, err
 }
 
-func dumpQueryResults(rows *sqlx.Rows) {
-	columns, _ := rows.Columns()
+// func dumpQueryResults(rows *sqlx.Rows) {
+// 	columns, _ := rows.Columns()
 
-	values := make([]sql.RawBytes, len(columns))
-	scanArgs := make([]interface{}, len(values))
-	log.Info(columns)
-	for i := range values {
-		scanArgs[i] = &values[i]
-	}
-	for rows.Next() {
-		rows.Scan(scanArgs...)
-		var value string
-		for i, col := range values {
-			// Here we can check if the value is nil (NULL value)
-			if col == nil {
-				value = "NULL"
-			} else {
-				value = string(col)
-			}
-			fmt.Println(columns[i], ": ", value)
-		}
-		fmt.Println("-----------------------------------") // rows.StructScan(copy)
+// 	values := make([]sql.RawBytes, len(columns))
+// 	scanArgs := make([]interface{}, len(values))
+// 	log.Info().Msgf("%+v", columns)
+// 	for i := range values {
+// 		scanArgs[i] = &values[i]
+// 	}
+// 	for rows.Next() {
+// 		rows.Scan(scanArgs...)
+// 		var value string
+// 		for i, col := range values {
+// 			// Here we can check if the value is nil (NULL value)
+// 			if col == nil {
+// 				value = "NULL"
+// 			} else {
+// 				value = string(col)
+// 			}
+// 			fmt.Println(columns[i], ": ", value)
+// 		}
+// 		fmt.Println("-----------------------------------") // rows.StructScan(copy)
 
-	}
-}
+// 	}
+// }

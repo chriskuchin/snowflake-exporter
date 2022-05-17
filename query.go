@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
+	"github.com/rs/zerolog/log"
 )
 
 type queryRow struct {
@@ -126,11 +126,11 @@ func GatherQueryMetrics(db *sql.DB, start chan time.Time, done chan bool) {
 		end := rangeStart.Truncate(interval)
 		start := end.Add(-interval)
 		query := fmt.Sprintf("select * from table(information_schema.query_history(END_TIME_RANGE_START => to_timestamp_ltz('%s'), END_TIME_RANGE_END => to_timestamp_ltz('%s')));", start.Format(time.RFC3339), end.Format(time.RFC3339))
-		log.Debugf("[QueryMetrics] Query: %s", query)
+		log.Debug().Msgf("[QueryMetrics] Query: %s", query)
 		if !dry {
 			rows, err := runQuery(query, db)
 			if err != nil {
-				log.Errorf("[QueryMetrics] Failed to query db for query history. %+v", err)
+				log.Error().Msgf("[QueryMetrics] Failed to query db for query history. %+v", err)
 				done <- true
 				continue
 			}
@@ -145,37 +145,37 @@ func GatherQueryMetrics(db *sql.DB, start chan time.Time, done chan bool) {
 				queryCounter.WithLabelValues(queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status).Inc()
 
 				if queryInfo.Status == "RUNNING" {
-					log.Debug("[QueryMetrics] Skipping Running query since there aren't metrics for it")
+					log.Debug().Msg("[QueryMetrics] Skipping Running query since there aren't metrics for it")
 					continue
 				}
 
 				bytesScannedCounter.WithLabelValues(queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status).Add(queryInfo.BytesScanned)
-				log.Debugf("[QueryMetrics] bytes_scanned:%v user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.BytesScanned, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
+				log.Debug().Msgf("[QueryMetrics] bytes_scanned:%v user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.BytesScanned, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
 
 				elapsedTimeHistogram.WithLabelValues(queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status).Observe(queryInfo.ElapsedTime)
 				executionTimeHistogram.WithLabelValues(queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status).Observe(queryInfo.Executiontime)
 				compilationTimeHistogram.WithLabelValues(queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status).Observe(queryInfo.CompilationTime)
-				log.Debugf("[QueryMetrics] elapsed_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.ElapsedTime, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
-				log.Debugf("[QueryMetrics] execution_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.Executiontime, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
-				log.Debugf("[QueryMetrics] compilation_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.CompilationTime, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
+				log.Debug().Msgf("[QueryMetrics] elapsed_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.ElapsedTime, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
+				log.Debug().Msgf("[QueryMetrics] execution_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.Executiontime, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
+				log.Debug().Msgf("[QueryMetrics] compilation_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.CompilationTime, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
 
 				rowsReturnedCounter.WithLabelValues(queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status).Add(queryInfo.RowsProduced)
-				log.Debugf("[QueryMetrics] rows_returned=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.RowsProduced, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
+				log.Debug().Msgf("[QueryMetrics] rows_returned=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.RowsProduced, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
 
 				queuedProvisionHistogram.WithLabelValues(queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status).Observe(queryInfo.QueuedProvisioningTime)
 				queuedRepairHistogram.WithLabelValues(queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status).Observe(queryInfo.QueuedRepairTime)
 				queuedOverloadHistogram.WithLabelValues(queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status).Observe(queryInfo.QueuedOverloadTime)
-				log.Debugf("[QueryMetrics] queued_provision=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.QueuedProvisioningTime, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
-				log.Debugf("[QueryMetrics] queued_repair=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.QueuedRepairTime, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
-				log.Debugf("[QueryMetrics] queued_overload=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.QueuedOverloadTime, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
+				log.Debug().Msgf("[QueryMetrics] queued_provision=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.QueuedProvisioningTime, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
+				log.Debug().Msgf("[QueryMetrics] queued_repair=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.QueuedRepairTime, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
+				log.Debug().Msgf("[QueryMetrics] queued_overload=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.QueuedOverloadTime, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
 
 				blockedTimeHistogram.WithLabelValues(queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status).Observe(queryInfo.TransactionBlockedTime)
-				log.Debugf("[QueryMetrics] blocked_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.TransactionBlockedTime, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
+				log.Debug().Msgf("[QueryMetrics] blocked_time=%v: user: %s, warehouse: %s, schema: %s, database: %s, status: %s\n", queryInfo.TransactionBlockedTime, queryInfo.User, queryInfo.Warehouse, queryInfo.Schema, queryInfo.Database, queryInfo.Status)
 			}
 
 			rows.Close()
 		} else {
-			log.Info("[QueryMetrics] Skipping query execution due to presence of dry-run flag")
+			log.Info().Msg("[QueryMetrics] Skipping query execution due to presence of dry-run flag")
 			done <- true
 		}
 	}

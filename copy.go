@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
+	"github.com/rs/zerolog/log"
 )
 
 type copy struct {
@@ -68,11 +68,11 @@ func GatherCopyMetrics(table string, db *sql.DB, start chan time.Time, done chan
 		end := rangeStart.Truncate(interval)
 		start := end.Add(-interval)
 		query := fmt.Sprintf("select * from table(information_schema.copy_history(TABLE_NAME => '%s', START_TIME=> to_timestamp_ltz('%s'), END_TIME => to_timestamp_ltz('%s')));", table, start.Format(time.RFC3339), end.Format(time.RFC3339))
-		log.Debugf("[CopyMetrics] Query: %s", query)
+		log.Debug().Msgf("[CopyMetrics] Query: %s", query)
 		if !dry {
 			rows, err := runQuery(query, db)
 			if err != nil {
-				log.Errorf("Failed to query db for copy history. %+v", err)
+				log.Error().Msgf("Failed to query db for copy history. %+v", err)
 				done <- true
 				continue
 			}
@@ -82,7 +82,7 @@ func GatherCopyMetrics(table string, db *sql.DB, start chan time.Time, done chan
 			copy := &copy{}
 			for rows.Next() {
 				rows.StructScan(copy)
-				log.Debugf("[CopyMetrics] Row: %+v", copy)
+				log.Debug().Msgf("[CopyMetrics] Row: %+v", copy)
 
 				copyCounter.WithLabelValues(copy.Table, copy.Schema, copy.Database, copy.Status).Inc()
 				if copy.Status == "LOADED" {
@@ -98,7 +98,7 @@ func GatherCopyMetrics(table string, db *sql.DB, start chan time.Time, done chan
 
 			rows.Close()
 		} else {
-			log.Info("[CopyMetrics] Skipping query execution due to presence of dry-run flag")
+			log.Info().Msg("[CopyMetrics] Skipping query execution due to presence of dry-run flag")
 			done <- true
 		}
 	}
