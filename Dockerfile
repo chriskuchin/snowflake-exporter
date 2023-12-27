@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 go test -v
 RUN go build -o ./out/snowflake-exporter .
 
 # Start fresh from a smaller image
-FROM alpine:3.9
+FROM alpine:3.19
 RUN apk add ca-certificates
 
 COPY --from=build_base /tmp/snowflake-exporter/out/snowflake-exporter /app/snowflake-exporter
