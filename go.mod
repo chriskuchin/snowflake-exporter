@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/prometheus/client_golang v1.18.0
-	github.com/rs/zerolog v1.31.0
+	github.com/rs/zerolog v1.32.0
 	github.com/snowflakedb/gosnowflake v1.7.2
 	github.com/urfave/cli/v2 v2.27.1
 )
